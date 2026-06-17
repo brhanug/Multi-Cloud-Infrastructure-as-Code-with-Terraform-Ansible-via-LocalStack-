@@ -1,0 +1,58 @@
+stages:
+  - lint
+  - test
+  - build
+  - deploy
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+
+lint-code:
+  stage: lint
+  image: python:3.11-slim
+  script:
+    - pip install ruff
+    - ruff check app/
+
+run-tests:
+  stage: test
+  image: python:3.11-slim
+  script:
+    - cd app
+    - pip install -r requirements.txt
+    - pytest
+
+build-image:
+  stage: build
+  image: docker:24.0.5
+  services:
+    - docker:24.0.5-dind
+  variables:
+    # Since we use host docker socket, we don't need dind services actually.
+    # We can override DOCKER_HOST to use the host docker daemon socket.
+    DOCKER_HOST: unix:///var/run/docker.sock
+  script:
+    # Login to local GitLab Container Registry
+    - docker login -u root -p xY9\$\$kL2#mP5*qT1\! localhost:5005
+    # Build and tag the image
+    - docker build -t localhost:5005/root/fastapi-app:$CI_COMMIT_SHA -t localhost:5005/root/fastapi-app:latest ./app
+    # Push the images
+    - docker push localhost:5005/root/fastapi-app:$CI_COMMIT_SHA
+    - docker push localhost:5005/root/fastapi-app:latest
+
+deploy-to-k8s:
+  stage: deploy
+  image: dtzar/helm-kubectl:3.14.0
+  script:
+    - mkdir -p ~/.kube
+    # Write the kubeconfig from CI variable
+    - echo "$KUBECONFIG_CONTENT" | base64 -d > ~/.kube/config
+    - chmod 600 ~/.kube/config
+    # Modify kubeconfig to use k3d internal API server name on the shared network
+    - sed -i 's/127.0.0.1:[0-9]*/k3d-dev-cluster-server-0:6443/g' ~/.kube/config
+    - sed -i 's/0.0.0.0:[0-9]*/k3d-dev-cluster-server-0:6443/g' ~/.kube/config
+    # Create image pull secret for the GitLab Registry
+    - kubectl create secret docker-registry gitlab-registry-credentials --docker-server=localhost:5005 --docker-username=root --docker-password=xY9\$\$kL2#mP5*qT1\! --dry-run=client -o yaml | kubectl apply -f -
+    # Deploy using helm
+    - helm upgrade --install fastapi-app ./helm/fastapi-app --set image.tag=$CI_COMMIT_SHA

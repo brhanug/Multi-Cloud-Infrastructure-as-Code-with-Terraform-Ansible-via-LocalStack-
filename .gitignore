@@ -1,0 +1,23 @@
+# Binaries
+bin/
+install_k3d.sh
+
+# GitLab local volumes
+gitlab/config/
+gitlab/data/
+gitlab/logs/
+gitlab/runner-config/
+
+# Kubernetes
+temp_kubeconfig
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+env/
+venv/
+
+# OS
+.DS_Store

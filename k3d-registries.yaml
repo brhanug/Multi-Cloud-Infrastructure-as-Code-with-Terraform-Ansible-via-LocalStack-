@@ -1,0 +1,7 @@
+mirrors:
+  "localhost:5005":
+    endpoint:
+      - "http://gitlab-web:5005"
+  "gitlab.local:5005":
+    endpoint:
+      - "http://gitlab-web:5005"

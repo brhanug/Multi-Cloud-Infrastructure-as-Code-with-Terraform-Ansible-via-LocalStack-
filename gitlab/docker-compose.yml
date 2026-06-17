@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  web:
+    image: 'gitlab/gitlab-ce:16.11.2-ce.0'
+    container_name: 'gitlab-web'
+    restart: always
+    hostname: 'gitlab.local'
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://localhost:8989'
+        registry_external_url 'http://localhost:5005'
+        gitlab_rails['initial_shared_runners_registration_token'] = 'devops-shared-token'
+        gitlab_rails['initial_root_password'] = 'DevOpsSuperSecure2026!'
+        # Performance tuning for local development on single laptop
+        puma['worker_processes'] = 2
+        sidekiq['max_concurrency'] = 5
+        prometheus['enable'] = false
+    ports:
+      - '8989:8989'
+      - '5005:5005'
+      - '2222:22'
+    volumes:
+      - './config:/etc/gitlab'
+      - './logs:/var/log/gitlab'
+      - './data:/var/opt/gitlab'
+    networks:
+      - gitlab-network
+
+  runner:
+    image: 'gitlab/gitlab-runner:alpine-v16.11.0'
+    container_name: 'gitlab-runner'
+    restart: always
+    depends_on:
+      - web
+    volumes:
+      - './runner-config:/etc/gitlab-runner'
+      - '/var/run/docker.sock:/var/run/docker.sock'
+    networks:
+      - gitlab-network
+
+networks:
+  gitlab-network:
+    name: gitlab-network
