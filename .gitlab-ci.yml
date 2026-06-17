@@ -90,7 +90,7 @@ build-etl:
   variables:
     DOCKER_HOST: unix:///var/run/docker.sock
   script:
-    - docker build -t localhost:5005/root/devsecops-etl:$CI_COMMIT_SHA -t localhost:5005/root/devsecops-etl:latest ./02-devsecops-etl
+    - docker build -t localhost:5005/root/fastapi-app/devsecops-etl:$CI_COMMIT_SHA -t localhost:5005/root/fastapi-app/devsecops-etl:latest ./02-devsecops-etl
 
 trivy-scan-etl:
   stage: build
@@ -104,7 +104,7 @@ trivy-scan-etl:
     - build-etl
   script:
     # Scan built image for CRITICAL vulnerabilities
-    - trivy image --cache-dir $TRIVY_CACHE_DIR --exit-code 1 --severity CRITICAL localhost:5005/root/devsecops-etl:latest
+    - trivy image --cache-dir $TRIVY_CACHE_DIR --exit-code 1 --severity CRITICAL localhost:5005/root/fastapi-app/devsecops-etl:latest
   cache:
     key: trivy-cache
     paths:
@@ -120,6 +120,6 @@ push-etl:
     - trivy-scan-etl
   script:
     - docker login -u root -p 'xY9$kL2#mP5*qT1!' localhost:5005
-    - docker push localhost:5005/root/devsecops-etl:$CI_COMMIT_SHA
-    - docker push localhost:5005/root/devsecops-etl:latest
+    - docker push localhost:5005/root/fastapi-app/devsecops-etl:$CI_COMMIT_SHA
+    - docker push localhost:5005/root/fastapi-app/devsecops-etl:latest
 
