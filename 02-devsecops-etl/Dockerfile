@@ -1,5 +1,5 @@
 # Stage 1: Build dependencies
-FROM python:3.11-slim AS builder
+FROM python:3.11-alpine AS builder
 
 WORKDIR /build
 
@@ -11,7 +11,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Stage 2: Hardened Runtime
-FROM python:3.11-slim AS runner
+FROM python:3.11-alpine AS runner
 
 WORKDIR /app
 
@@ -29,7 +29,7 @@ ENV ETL_DB_PATH="/app/data/weather_data.db"
 ENV ETL_API_URL="https://api.open-meteo.com/v1/forecast"
 
 # Create a non-privileged user and directory for database file persistence
-RUN addgroup --system etlgroup && adduser --system --ingroup etlgroup etluser
+RUN addgroup -S etlgroup && adduser -S -G etlgroup etluser
 RUN mkdir -p /app/data && chown -R etluser:etlgroup /app
 
 # Run as non-root user (security hardening)
