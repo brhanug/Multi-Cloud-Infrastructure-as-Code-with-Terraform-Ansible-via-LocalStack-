@@ -1,8 +1,9 @@
+import logging
 import os
 import sqlite3
 import sys
-import logging
 from datetime import datetime
+
 import httpx
 from pydantic import BaseModel, Field, ValidationError
 
@@ -10,7 +11,7 @@ from pydantic import BaseModel, Field, ValidationError
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)]
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger("weather-etl")
 
@@ -20,6 +21,7 @@ LATITUDE = os.getenv("ETL_LATITUDE", "50.8503")  # Brussels
 LONGITUDE = os.getenv("ETL_LONGITUDE", "4.3517")
 DB_PATH = os.getenv("ETL_DB_PATH", "weather_data.db")
 
+
 # Pydantic schema for transform/validation
 class CurrentWeatherModel(BaseModel):
     time: str
@@ -27,10 +29,12 @@ class CurrentWeatherModel(BaseModel):
     windspeed: float = Field(..., alias="windspeed")
     weathercode: int = Field(..., alias="weathercode")
 
+
 class ApiResponseModel(BaseModel):
     latitude: float
     longitude: float
     current_weather: CurrentWeatherModel
+
 
 def init_db(db_path: str):
     """Initialize SQLite database and table securely."""
@@ -52,20 +56,18 @@ def init_db(db_path: str):
     finally:
         conn.close()
 
+
 def extract_data(url: str, lat: str, lon: str) -> dict:
     """Fetch weather data from public API using httpx."""
-    params = {
-        "latitude": lat,
-        "longitude": lon,
-        "current_weather": "true"
-    }
+    params = {"latitude": lat, "longitude": lon, "current_weather": "true"}
     logger.info(f"Extracting data from API: {url} for lat={lat}, lon={lon}")
-    
+
     # Secure HTTP client configuration (timeout included)
     with httpx.Client(timeout=10.0) as client:
         response = client.get(url, params=params)
         response.raise_for_status()
         return response.json()
+
 
 def transform_data(payload: dict) -> dict:
     """Validate and clean data using Pydantic."""
@@ -73,20 +75,21 @@ def transform_data(payload: dict) -> dict:
     try:
         validated_data = ApiResponseModel(**payload)
         current = validated_data.current_weather
-        
+
         # Clean/Format fields
         transformed = {
             "timestamp": current.time,
             "temperature": current.temperature,
             "windspeed": current.windspeed,
             "weathercode": current.weathercode,
-            "ingested_at": datetime.utcnow().isoformat()
+            "ingested_at": datetime.utcnow().isoformat(),
         }
         logger.info(f"Data transformed successfully: {transformed}")
         return transformed
     except ValidationError as e:
         logger.error(f"Data validation failed: {e}")
         raise ValueError("Invalid weather payload structure") from e
+
 
 def load_data(db_path: str, data: dict):
     """Load transformed data into SQLite securely using parameterized queries."""
@@ -96,17 +99,20 @@ def load_data(db_path: str, data: dict):
         cursor = conn.cursor()
         # Parameterized query to prevent SQL Injection (verified by Bandit)
         query = """
-            INSERT OR IGNORE INTO weather_records 
+            INSERT OR IGNORE INTO weather_records
             (timestamp, temperature, windspeed, weathercode, ingested_at)
             VALUES (?, ?, ?, ?, ?)
         """
-        cursor.execute(query, (
-            data["timestamp"],
-            data["temperature"],
-            data["windspeed"],
-            data["weathercode"],
-            data["ingested_at"]
-        ))
+        cursor.execute(
+            query,
+            (
+                data["timestamp"],
+                data["temperature"],
+                data["windspeed"],
+                data["weathercode"],
+                data["ingested_at"],
+            ),
+        )
         conn.commit()
         if cursor.rowcount > 0:
             logger.info("Record loaded successfully into DB.")
@@ -117,6 +123,7 @@ def load_data(db_path: str, data: dict):
         raise
     finally:
         conn.close()
+
 
 def run_etl():
     """Run the end-to-end ETL flow."""
@@ -130,6 +137,7 @@ def run_etl():
     except Exception as e:
         logger.critical(f"ETL Pipeline execution failed: {e}", exc_info=True)
         sys.exit(1)
+
 
 if __name__ == "__main__":
     run_etl()

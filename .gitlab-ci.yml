@@ -74,7 +74,7 @@ sec-scan-etl:
   image: python:3.11-slim
   script:
     - pip install bandit
-    - bandit -r 02-devsecops-etl/ --level medium
+    - bandit -r 02-devsecops-etl/ -x 02-devsecops-etl/venv --severity-level medium
 
 test-etl:
   stage: test
