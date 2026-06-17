@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Health Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-gradient: radial-gradient(circle at top right, #100f24, #040408);
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --card-bg-hover: rgba(255, 255, 255, 0.06);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --card-glow: rgba(59, 130, 246, 0.1);
+            
+            --text-primary: #f4f4f5;
+            --text-secondary: #a1a1aa;
+            
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-amber: #f59e0b;
+            --accent-pink: #ec4899;
+            
+            --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding: 2rem;
+        }
+
+        /* Container Layout */
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* Header Styling */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 1.5rem 2rem;
+            box-shadow: var(--shadow-md);
+        }
+
+        .header-title h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #a78bfa, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+            margin-bottom: 0.25rem;
+        }
+
+        .header-title p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+        }
+
+        .refresh-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            font-family: inherit;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .refresh-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--accent-blue);
+            transform: translateY(-1px);
+        }
+
+        .refresh-btn:active {
+            transform: translateY(1px);
+        }
+
+        .refresh-btn svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+            transition: transform 0.5s ease;
+        }
+
+        .refresh-btn.spinning svg {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+
+        .select-wrapper {
+            position: relative;
+        }
+
+        .interval-select {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+            padding: 0.6rem 2.2rem 0.6rem 1.2rem;
+            border-radius: 12px;
+            font-family: inherit;
+            font-weight: 500;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            transition: all 0.3s;
+        }
+
+        .interval-select:hover {
+            border-color: var(--accent-blue);
+        }
+
+        .select-wrapper::after {
+            content: '▼';
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+
+        /* Static Info Bar */
+        .system-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+        }
+
+        .info-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            transition: transform 0.3s;
+        }
+
+        .info-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .info-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+        }
+
+        .info-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            word-break: break-all;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+        }
+
+        /* Metrics Row */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .metric-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--accent-blue);
+        }
+
+        .metric-card.cpu::before { background: var(--accent-blue); }
+        .metric-card.memory::before { background: var(--accent-purple); }
+        .metric-card.disk::before { background: var(--accent-amber); }
+        .metric-card.network::before { background: var(--accent-pink); }
+
+        .metric-card:hover {
+            transform: translateY(-4px);
+            background: var(--card-bg-hover);
+            border-color: rgba(255, 255, 255, 0.12);
+            box-shadow: 0 10px 20px var(--card-glow);
+        }
+
+        .metric-card.cpu:hover { --card-glow: rgba(59, 130, 246, 0.08); }
+        .metric-card.memory:hover { --card-glow: rgba(139, 92, 246, 0.08); }
+        .metric-card.disk:hover { --card-glow: rgba(245, 158, 11, 0.08); }
+        .metric-card.network:hover { --card-glow: rgba(236, 72, 153, 0.08); }
+
+        .metric-details {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .metric-name {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+        }
+
+        .metric-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+
+        .metric-desc {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .metric-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+        }
+
+        .metric-card.cpu .metric-icon { color: var(--accent-blue); background: rgba(59, 130, 246, 0.1); }
+        .metric-card.memory .metric-icon { color: var(--accent-purple); background: rgba(139, 92, 246, 0.1); }
+        .metric-card.disk .metric-icon { color: var(--accent-amber); background: rgba(245, 158, 11, 0.1); }
+        .metric-card.network .metric-icon { color: var(--accent-pink); background: rgba(236, 72, 153, 0.1); }
+
+        /* Visualization Layout */
+        .visualization-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 1024px) {
+            .visualization-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chart-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .chart-body {
+            position: relative;
+            width: 100%;
+            height: 350px;
+        }
+
+        /* Services Grid */
+        .services-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: -0.25px;
+            color: var(--text-primary);
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .service-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s;
+        }
+
+        .service-card:hover {
+            transform: translateY(-2px);
+            background: var(--card-bg-hover);
+        }
+
+        .service-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .service-logo {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.04);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .service-name {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .service-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.8rem;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .service-badge.active {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--accent-green);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .service-badge.inactive {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--accent-red);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .service-badge.active .status-dot {
+            animation: pulse-green 2s infinite;
+        }
+
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        /* Footer */
+        footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            padding: 1rem 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.04);
+            margin-top: 1rem;
+        }
+
+        .footer-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .footer-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-green);
+        }
+
+        .footer-dot.offline {
+            background: var(--accent-red);
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    <!-- Header -->
+    <header>
+        <div class="header-title">
+            <h1 id="dashboard-title">SYSTEM DASHBOARD</h1>
+            <p>Real-time system health and process analytics daemon</p>
+        </div>
+        <div class="header-controls">
+            <div class="select-wrapper">
+                <select class="interval-select" id="refresh-interval">
+                    <option value="5000">Refresh: 5s</option>
+                    <option value="10000">Refresh: 10s</option>
+                    <option value="30000">Refresh: 30s</option>
+                    <option value="0">Refresh: Off</option>
+                </select>
+            </div>
+            <button class="refresh-btn" id="refresh-btn">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
+                </svg>
+                <span>Refresh</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- System Specs Bar -->
+    <div class="system-info-grid" id="system-info">
+        <div class="info-card">
+            <span class="info-label">Hostname</span>
+            <span class="info-value mono" id="info-hostname">...</span>
+        </div>
+        <div class="info-card">
+            <span class="info-label">Operating System</span>
+            <span class="info-value" id="info-os">...</span>
+        </div>
+        <div class="info-card">
+            <span class="info-label">CPU Model</span>
+            <span class="info-value" id="info-cpu-model">...</span>
+        </div>
+        <div class="info-card">
+            <span class="info-label">Cores</span>
+            <span class="info-value" id="info-cores">...</span>
+        </div>
+        <div class="info-card">
+            <span class="info-label">System Uptime</span>
+            <span class="info-value mono" id="info-uptime">...</span>
+        </div>
+    </div>
+
+    <!-- Core Metrics Grid -->
+    <div class="metrics-grid">
+        <!-- CPU Card -->
+        <div class="metric-card cpu">
+            <div class="metric-details">
+                <span class="metric-name">CPU Load</span>
+                <span class="metric-value" id="metric-cpu">0.0%</span>
+                <span class="metric-desc" id="metric-cpu-cores">Logical processor utilization</span>
+            </div>
+            <div class="metric-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="15" x2="23" y2="15"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="15" x2="4" y2="15"></line></svg>
+            </div>
+        </div>
+
+        <!-- Memory Card -->
+        <div class="metric-card memory">
+            <div class="metric-details">
+                <span class="metric-name">RAM Utilization</span>
+                <span class="metric-value" id="metric-mem">0.0%</span>
+                <span class="metric-desc" id="metric-mem-details">0.0 GB / 0.0 GB Total</span>
+            </div>
+            <div class="metric-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 19v2"></path><path d="M10 19v2"></path><path d="M14 19v2"></path><path d="M18 19v2"></path><path d="M8 11h8v3H8z"></path><path d="M2 5h20v14H2z"></path></svg>
+            </div>
+        </div>
+
+        <!-- Disk Card -->
+        <div class="metric-card disk">
+            <div class="metric-details">
+                <span class="metric-name">Disk Space</span>
+                <span class="metric-value" id="metric-disk">0%</span>
+                <span class="metric-desc" id="metric-disk-details">0.0 GB / 0.0 GB Total</span>
+            </div>
+            <div class="metric-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"></path><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"></path></svg>
+            </div>
+        </div>
+
+        <!-- Network Card -->
+        <div class="metric-card network">
+            <div class="metric-details">
+                <span class="metric-name">Network Rates</span>
+                <span class="metric-value" id="metric-net-speed" style="font-size: 1.7rem; font-weight: 700; margin: 0.3rem 0;">▲ 0 B/s | ▼ 0 B/s</span>
+                <span class="metric-desc" id="metric-net-total">Total: ▲ 0 GB | ▼ 0 GB</span>
+            </div>
+            <div class="metric-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"></polyline><line x1="3" y1="11" x2="21" y2="11"></line><polyline points="7 23 3 19 7 15"></polyline><line x1="21" y1="13" x2="3" y2="13"></line></svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Visualization -->
+    <div class="visualization-grid">
+        <!-- Resource Chart -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3 class="chart-title">Resource Load History</h3>
+            </div>
+            <div class="chart-body">
+                <canvas id="resourceChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Network Chart -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3 class="chart-title">Network Throughput (kB/s)</h3>
+            </div>
+            <div class="chart-body">
+                <canvas id="networkChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Services Badges -->
+    <div class="services-section">
+        <h3 class="section-title">Critical Process Daemon Statuses</h3>
+        <div class="services-grid">
+            <!-- Docker -->
+            <div class="service-card" id="srv-docker">
+                <div class="service-info">
+                    <div class="service-logo">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M13.983 11.078h2.119v-2.006h-2.119v2.006zm-2.737 0h2.119v-2.006h-2.119v2.006zm-2.737 0h2.119v-2.006H8.509v2.006zm-2.737 0h2.119v-2.006H5.772v2.006zm2.737-2.61h2.119V6.462H8.509v2.006zm2.737 0h2.119V6.462h-2.119v2.006zm2.737 0h2.119V6.462h-2.119v2.006zm-5.474-2.61h2.119V3.852H8.509v2.006zm15.42 5.093c-.093-.066-.312-.224-.653-.393a5.452 5.452 0 0 0-2.457-.59c-.287 0-.575.021-.861.063a5.986 5.986 0 0 0-4.041-3.69l-.176-.056v.183c-.021.905-.333 1.776-.897 2.496v.02c.706.059 1.341.365 1.83.884l.092.097.021-.132a2.38 2.38 0 0 1 2.228-2.036c.22 0 .42.035.613.102l.142.051v.151c.004.839-.37 1.637-1.01 2.146l-.161.128.188.077c1.391.566 2.327 1.956 2.327 3.454 0 2.215-1.921 4.017-4.283 4.017H1.674C.75 16.486 0 17.202 0 18.082c0 .878.75 1.597 1.674 1.597h16.242c4.135 0 7.502-3.197 7.502-7.112 0-1.127-.293-2.166-.997-3.056l.002-.344z"/></svg>
+                    </div>
+                    <span class="service-name">Docker Engine</span>
+                </div>
+                <div class="service-badge inactive" id="badge-docker">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Checking</span>
+                </div>
+            </div>
+
+            <!-- GitLab -->
+            <div class="service-card" id="srv-gitlab">
+                <div class="service-info">
+                    <div class="service-logo">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="m23.905 11.968-1.579-4.858a.49.49 0 0 0-.16-.242.49.49 0 0 0-.285-.084.49.49 0 0 0-.285.084.49.49 0 0 0-.16.242L19.86 11.97H4.14L2.562 7.11a.49.49 0 0 0-.16-.242.49.49 0 0 0-.285-.084.49.49 0 0 0-.285.084.49.49 0 0 0-.16.242L.095 11.968a.98.98 0 0 0 .074.773.98.98 0 0 0 .285.342l11.026 8.016c.142.103.313.159.489.159s.347-.056.489-.159l11.026-8.016a.98.98 0 0 0 .285-.342.98.98 0 0 0 .074-.773l.061.001z"/></svg>
+                    </div>
+                    <span class="service-name">GitLab Omnibus</span>
+                </div>
+                <div class="service-badge inactive" id="badge-gitlab">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Checking</span>
+                </div>
+            </div>
+
+            <!-- K3s -->
+            <div class="service-card" id="srv-k3s">
+                <div class="service-info">
+                    <div class="service-logo">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                    </div>
+                    <span class="service-name">k3s Kubernetes</span>
+                </div>
+                <div class="service-badge inactive" id="badge-k3s">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Checking</span>
+                </div>
+            </div>
+
+            <!-- Prometheus -->
+            <div class="service-card" id="srv-prometheus">
+                <div class="service-info">
+                    <div class="service-logo">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+                    </div>
+                    <span class="service-name">Prometheus Stack</span>
+                </div>
+                <div class="service-badge inactive" id="badge-prometheus">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Checking</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-status">
+            <span class="footer-dot" id="connection-dot"></span>
+            <span id="connection-text">Connected to API Daemon</span>
+        </div>
+        <div>
+            Last updated: <span id="last-updated-time" class="mono">Never</span>
+        </div>
+        <div>
+            Project 5 - Linux System Dashboard
+        </div>
+    </footer>
+</div>
+
+<script>
+    // Configuration & State
+    let refreshTimer = null;
+    let resourceChartInstance = null;
+    let networkChartInstance = null;
+    let isFetching = false;
+    let totalCores = 1;
+    let totalMemGB = 0;
+    let totalDiskGB = 0;
+
+    // Chart Configuration Helper
+    const chartDefaults = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: true,
+                labels: {
+                    color: '#a1a1aa',
+                    font: { family: 'Outfit', size: 12 }
+                }
+            }
+        },
+        scales: {
+            x: {
+                grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                ticks: {
+                    color: '#a1a1aa',
+                    font: { family: 'JetBrains Mono', size: 10 },
+                    maxTicksLimit: 8
+                }
+            },
+            y: {
+                grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                ticks: {
+                    color: '#a1a1aa',
+                    font: { family: 'JetBrains Mono', size: 10 }
+                }
+            }
+        }
+    };
+
+    // Format Bytes helper
+    function formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['B', 'kB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    // Initialize Charts
+    function initCharts() {
+        const resourceCtx = document.getElementById('resourceChart').getContext('2d');
+        resourceChartInstance = new Chart(resourceCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'CPU Load (%)',
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                        fill: true,
+                        tension: 0.3,
+                        data: [],
+                        borderWidth: 2,
+                        pointRadius: 1
+                    },
+                    {
+                        label: 'RAM Load (%)',
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.08)',
+                        fill: true,
+                        tension: 0.3,
+                        data: [],
+                        borderWidth: 2,
+                        pointRadius: 1
+                    }
+                ]
+            },
+            options: {
+                ...chartDefaults,
+                scales: {
+                    ...chartDefaults.scales,
+                    y: {
+                        ...chartDefaults.scales.y,
+                        min: 0,
+                        max: 100,
+                        ticks: {
+                            ...chartDefaults.scales.y.ticks,
+                            callback: value => value + '%'
+                        }
+                    }
+                }
+            }
+        });
+
+        const networkCtx = document.getElementById('networkChart').getContext('2d');
+        networkChartInstance = new Chart(networkCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Upload (kB/s)',
+                        borderColor: '#ec4899',
+                        backgroundColor: 'rgba(236, 72, 153, 0.04)',
+                        fill: true,
+                        tension: 0.3,
+                        data: [],
+                        borderWidth: 2,
+                        pointRadius: 1
+                    },
+                    {
+                        label: 'Download (kB/s)',
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'rgba(6, 182, 212, 0.04)',
+                        fill: true,
+                        tension: 0.3,
+                        data: [],
+                        borderWidth: 2,
+                        pointRadius: 1
+                    }
+                ]
+            },
+            options: chartDefaults
+        });
+    }
+
+    // Load static system data
+    async function loadSystemInfo() {
+        try {
+            const res = await fetch('/api/system/info');
+            if (!res.ok) throw new Error("Could not fetch system info.");
+            const data = await res.json();
+            
+            document.getElementById('info-hostname').innerText = data.hostname;
+            document.getElementById('info-os').innerText = data.os;
+            document.getElementById('info-cpu-model').innerText = data.cpu_model;
+            document.getElementById('info-cores').innerText = `${data.cpu_cores} logical (${data.cpu_physical_cores} physical)`;
+            document.getElementById('info-uptime').innerText = data.uptime;
+            
+            // Set variables
+            totalCores = data.cpu_cores;
+            totalMemGB = data.total_memory_gb;
+            totalDiskGB = data.total_disk_gb;
+            
+            // Set description text in cards
+            document.getElementById('metric-cpu-cores').innerText = `Aggregated over ${totalCores} virtual cores`;
+        } catch (e) {
+            console.error("Error fetching system info:", e);
+        }
+    }
+
+    // Populate service badge styling
+    function updateServiceBadge(badgeId, status) {
+        const badge = document.getElementById(badgeId);
+        const text = badge.querySelector('.status-text');
+        
+        if (status === 1) {
+            badge.className = 'service-badge active';
+            text.innerText = 'Active';
+        } else {
+            badge.className = 'service-badge inactive';
+            text.innerText = 'Inactive';
+        }
+    }
+
+    // Fetch and update dashboard metrics
+    async function fetchMetrics(isInitial = false) {
+        if (isFetching) return;
+        isFetching = true;
+        
+        const refreshBtn = document.getElementById('refresh-btn');
+        refreshBtn.classList.add('spinning');
+        
+        try {
+            // 1. Fetch current metrics
+            const currentRes = await fetch('/api/metrics/current');
+            if (!currentRes.ok) throw new Error("Could not fetch current metrics.");
+            const current = await currentRes.json();
+            
+            if (current.error) {
+                console.warn(current.error);
+                return;
+            }
+            
+            // Update cards
+            document.getElementById('metric-cpu').innerText = `${current.cpu_percent.toFixed(1)}%`;
+            document.getElementById('metric-mem').innerText = `${current.memory_percent.toFixed(1)}%`;
+            
+            const usedMemGB = ((current.memory_percent / 100) * totalMemGB).toFixed(1);
+            document.getElementById('metric-mem-details').innerText = `${usedMemGB} GB / ${totalMemGB.toFixed(1)} GB Total`;
+            
+            document.getElementById('metric-disk').innerText = `${current.disk_percent.toFixed(0)}%`;
+            const usedDiskGB = ((current.disk_percent / 100) * totalDiskGB).toFixed(0);
+            document.getElementById('metric-disk-details').innerText = `${usedDiskGB} GB / ${totalDiskGB.toFixed(0)} GB Total`;
+            
+            const speedSentStr = formatBytes(current.net_sent_rate);
+            const speedRecvStr = formatBytes(current.net_recv_rate);
+            document.getElementById('metric-net-speed').innerText = `▲ ${speedSentStr}/s | ▼ ${speedRecvStr}/s`;
+            
+            const totalSentGB = (current.net_sent_bytes / (1024**3)).toFixed(1);
+            const totalRecvGB = (current.net_recv_bytes / (1024**3)).toFixed(1);
+            document.getElementById('metric-net-total').innerText = `Total: ▲ ${totalSentGB} GB | ▼ ${totalRecvGB} GB`;
+            
+            // Update process statuses
+            updateServiceBadge('badge-docker', current.docker_status);
+            updateServiceBadge('badge-gitlab', current.gitlab_status);
+            updateServiceBadge('badge-k3s', current.k3s_status);
+            updateServiceBadge('badge-prometheus', current.prometheus_status);
+            
+            // Update footer
+            document.getElementById('connection-dot').className = 'footer-dot';
+            document.getElementById('connection-text').innerText = 'Connected to API Daemon';
+            document.getElementById('last-updated-time').innerText = new Date().toLocaleTimeString();
+
+            // 2. Fetch history for the charts
+            const historyRes = await fetch('/api/metrics/history?limit=60');
+            if (historyRes.ok) {
+                const history = await historyRes.json();
+                
+                const labels = [];
+                const cpuData = [];
+                const memData = [];
+                const netSentKB = [];
+                const netRecvKB = [];
+                
+                history.forEach(item => {
+                    const timeObj = new Date(item.timestamp);
+                    labels.push(timeObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+                    cpuData.push(item.cpu_percent);
+                    memData.push(item.memory_percent);
+                    // convert rates to kB/s for better visual scaling
+                    netSentKB.push(item.net_sent_rate / 1024);
+                    netRecvKB.push(item.net_recv_rate / 1024);
+                });
+                
+                // Update resource chart
+                resourceChartInstance.data.labels = labels;
+                resourceChartInstance.data.datasets[0].data = cpuData;
+                resourceChartInstance.data.datasets[1].data = memData;
+                resourceChartInstance.update('none'); // silent update for performance
+                
+                // Update network chart
+                networkChartInstance.data.labels = labels;
+                networkChartInstance.data.datasets[0].data = netSentKB;
+                networkChartInstance.data.datasets[1].data = netRecvKB;
+                networkChartInstance.update('none');
+            }
+        } catch (e) {
+            console.error("Error fetching metrics:", e);
+            document.getElementById('connection-dot').className = 'footer-dot offline';
+            document.getElementById('connection-text').innerText = 'API Daemon Offline';
+        } finally {
+            isFetching = false;
+            // Delay spinning removal to ensure smooth visual transition
+            setTimeout(() => {
+                refreshBtn.classList.remove('spinning');
+            }, 500);
+        }
+    }
+
+    // Set auto refresh interval
+    function setupRefresh() {
+        const select = document.getElementById('refresh-interval');
+        
+        const changeInterval = () => {
+            if (refreshTimer) clearInterval(refreshTimer);
+            const val = parseInt(select.value);
+            if (val > 0) {
+                refreshTimer = setInterval(() => {
+                    fetchMetrics();
+                    // Also reload system uptime occasionally
+                    loadSystemInfo();
+                }, val);
+            }
+        };
+        
+        select.addEventListener('change', changeInterval);
+        // Trigger initial setup
+        changeInterval();
+    }
+
+    // Initial setup on page load
+    window.addEventListener('DOMContentLoaded', async () => {
+        initCharts();
+        await loadSystemInfo();
+        await fetchMetrics(true);
+        setupRefresh();
+        
+        // Manual refresh button listener
+        document.getElementById('refresh-btn').addEventListener('click', () => {
+            fetchMetrics();
+            loadSystemInfo();
+        });
+    });
+</script>
+</body>
+</html>
