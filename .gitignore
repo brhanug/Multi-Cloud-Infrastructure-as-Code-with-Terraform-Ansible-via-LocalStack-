@@ -21,3 +21,7 @@ venv/
 
 # OS
 .DS_Store
+
+# Databases
+*.db
+02-devsecops-etl/data/
