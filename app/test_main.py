@@ -1,8 +1,10 @@
 from fastapi.testclient import TestClient
+
 try:
     from app.main import app
 except ModuleNotFoundError:
     from main import app
+
 
 client = TestClient(app)
 
@@ -50,7 +52,7 @@ def test_create_item():
     assert data["name"] == "Helm Mug"
     assert data["price"] == 12.50
     assert "id" in data
-    
+
     # Verify it was added
     get_response = client.get(f"/items/{data['id']}")
     assert get_response.status_code == 200

@@ -1,5 +1,6 @@
 import logging
 from typing import Dict, List, Optional
+
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
 
@@ -63,7 +64,12 @@ def get_item(item_id: int):
         )
     return ITEMS_DB[item_id]
 
-@app.post("/items", response_model=ItemResponse, status_code=status.HTTP_201_CREATED, tags=["Items"])
+@app.post(
+    "/items",
+    response_model=ItemResponse,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Items"],
+)
 def create_item(item: Item):
     logger.info(f"Creating new item: {item.name}")
     new_id = max(ITEMS_DB.keys()) + 1 if ITEMS_DB else 1
