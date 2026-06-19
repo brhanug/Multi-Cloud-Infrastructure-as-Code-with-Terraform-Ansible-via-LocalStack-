@@ -17,6 +17,7 @@ Below is the directory mapping and technical stack for the 5 projects contained 
 | **Project 5** | [`/05-system-dashboard`](file:///Users/brhanu/Documents/Projects/05-system-dashboard) | **Linux System Health Dashboard** (Background monitoring collector that writes system metrics and service daemons to SQLite, serving a real-time glassmorphic UI). | FastAPI, psutil, SQLite, Chart.js |
 | **Project 6** | [`/06-gitops`](file:///Users/brhanu/Documents/Projects/06-gitops) | **Declarative GitOps CD** (ArgoCD gitops-based continuous delivery and automated sync/self-healing, using Sealed Secrets for encryption). | ArgoCD, Sealed Secrets (`kubeseal`), Kubernetes |
 | **Project 7** | [`/07-multi-cloud-iac`](file:///Users/brhanu/Documents/Projects/07-multi-cloud-iac) | **Multi-Cloud IaC & Configuration** (Terraform infrastructure provisioning in LocalStack and server hardening & configuration using Ansible). | Terraform, Ansible, LocalStack, Docker |
+| **Project 8** | [`/08-mesh-tracing`](file:///Users/brhanu/Documents/Projects/08-mesh-tracing) | **Cloud-Native Microservices Mesh & Distributed Tracing** (Istio mesh integration with OpenTelemetry and Jaeger trace visualizer). | Istio, OpenTelemetry, Jaeger, FastAPI, Kubernetes |
 
 ---
 
@@ -112,6 +113,19 @@ Follow these instructions to verify and run each of the 5 projects:
     ```bash
     aws --endpoint-url=http://localhost:4566 s3 ls
     ```
+
+### 7️⃣ Project 8: Cloud-Native Microservices Mesh & Distributed Tracing
+* **Deployment**: Istio Service Mesh, OpenTelemetry tracing SDK, and Jaeger collector in k3d.
+* **Verify**:
+  * Trigger outbound multi-hop sentiment query from `fastapi-app` to `data-api`:
+    ```bash
+    curl -s "http://localhost:8081/items/sentiment?text=Advanced%20Agentic%20Coding%20is%20extremely%20fast!"
+    ```
+  * Forward the Jaeger UI dashboard to host port `16686`:
+    ```bash
+    kubectl port-forward -n istio-system service/tracing 16686:80
+    ```
+  * Access Jaeger at [http://localhost:16686/jaeger](http://localhost:16686/jaeger) and trace telemetry flow across `fastapi-app` and `data-api`.
 
 ---
 
