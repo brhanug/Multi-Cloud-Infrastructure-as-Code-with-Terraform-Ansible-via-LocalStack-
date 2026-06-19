@@ -18,6 +18,7 @@ Below is the directory mapping and technical stack for the 5 projects contained 
 | **Project 6** | [`/06-gitops`](file:///Users/brhanu/Documents/Projects/06-gitops) | **Declarative GitOps CD** (ArgoCD gitops-based continuous delivery and automated sync/self-healing, using Sealed Secrets for encryption). | ArgoCD, Sealed Secrets (`kubeseal`), Kubernetes |
 | **Project 7** | [`/07-multi-cloud-iac`](file:///Users/brhanu/Documents/Projects/07-multi-cloud-iac) | **Multi-Cloud IaC & Configuration** (Terraform infrastructure provisioning in LocalStack and server hardening & configuration using Ansible). | Terraform, Ansible, LocalStack, Docker |
 | **Project 8** | [`/08-mesh-tracing`](file:///Users/brhanu/Documents/Projects/08-mesh-tracing) | **Cloud-Native Microservices Mesh & Distributed Tracing** (Istio mesh integration with OpenTelemetry and Jaeger trace visualizer). | Istio, OpenTelemetry, Jaeger, FastAPI, Kubernetes |
+| **Project 9** | [`/09-chaos-engineering`](file:///Users/brhanu/Documents/Projects/09-chaos-engineering) | **SRE Chaos Engineering Pipeline** (Chaos Mesh deployment executing Pod failure recovery and Network latency injection experiments). | Chaos Mesh, Kubernetes, Helm |
 
 ---
 
@@ -126,6 +127,16 @@ Follow these instructions to verify and run each of the 5 projects:
     kubectl port-forward -n istio-system service/tracing 16686:80
     ```
   * Access Jaeger at [http://localhost:16686/jaeger](http://localhost:16686/jaeger) and trace telemetry flow across `fastapi-app` and `data-api`.
+
+### 8️⃣ Project 9: SRE Chaos Engineering Pipeline (Chaos Mesh)
+* **Deployment**: Chaos Mesh operator engine targeting the k3d nodes containerd socket.
+* **Verify**:
+  * Execute the automated chaos suite:
+    ```bash
+    ./09-chaos-engineering/demo.sh
+    ```
+  * Verify ReplicaSet healing by watching Kubernetes replace pods in real-time.
+  * Verify Network Latency injection triggers and that response time spikes by 250ms+.
 
 ---
 
