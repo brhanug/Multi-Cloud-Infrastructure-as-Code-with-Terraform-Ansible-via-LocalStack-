@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  localstack:
+    container_name: 'localstack'
+    image: localstack/localstack:3.0.2
+    ports:
+      - '127.0.0.1:4566:4566'
+    environment:
+      - SERVICES=s3,ec2,rds,ssm
+      - DEBUG=1
+    volumes:
+      - './localstack-data:/var/lib/localstack'
+      - '/var/run/docker.sock:/var/run/docker.sock'
+    networks:
+      - gitlab-network
+
+  target-vm:
+    container_name: 'target-vm'
+    build:
+      context: ./ansible/target
+      dockerfile: Dockerfile
+    ports:
+      - '127.0.0.1:2223:22'
+    networks:
+      - gitlab-network
+
+networks:
+  gitlab-network:
+    external: true
+    name: gitlab-network

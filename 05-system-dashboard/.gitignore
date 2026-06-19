@@ -1,0 +1,15 @@
+# Python caches
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# SQLite Databases
+*.db
+
+# OS files
+.DS_Store

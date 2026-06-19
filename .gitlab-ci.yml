@@ -256,5 +256,40 @@ push-dashboard:
     - docker push localhost:5005/root/fastapi-app/system-dashboard:$CI_COMMIT_SHA
     - docker push localhost:5005/root/fastapi-app/system-dashboard:latest
 
+# =========================================================================
+# MULTI-CLOUD IAC & CONFIGURATION MANAGEMENT (Project 7)
+# =========================================================================
+
+lint-terraform:
+  stage: lint
+  image: hashicorp/terraform:1.8.5
+  script:
+    - cd 07-multi-cloud-iac/terraform
+    - terraform init -backend=false
+    - terraform validate
+
+plan-terraform:
+  stage: test
+  image: hashicorp/terraform:1.8.5
+  services:
+    - name: localstack/localstack:3.0.2
+      alias: localstack
+  variables:
+    AWS_DEFAULT_REGION: us-east-1
+    SERVICES: s3,ec2
+  script:
+    - cd 07-multi-cloud-iac/terraform
+    - terraform init
+    - terraform plan -var="localstack_endpoint=http://localstack:4566"
+
+lint-ansible:
+  stage: lint
+  image: python:3.11-slim
+  script:
+    - pip install ansible ansible-lint
+    - cd 07-multi-cloud-iac/ansible
+    - ansible-lint playbook.yml
+
+
 
 
