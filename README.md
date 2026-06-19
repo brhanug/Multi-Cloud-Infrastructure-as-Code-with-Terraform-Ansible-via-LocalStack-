@@ -15,6 +15,8 @@ Below is the directory mapping and technical stack for the 5 projects contained 
 | **Project 3** | [`/03-monitoring`](file:///Users/brhanu/Documents/Projects/03-monitoring) | **IaC Monitoring Stack** (Telemetry ingestion for ETL scripts using Pushgateway, Prometheus scraping, and Grafana visualization). | Docker Compose, Prometheus, Grafana |
 | **Project 4** | [`/04-k8s-data-api`](file:///Users/brhanu/Documents/Projects/04-k8s-data-api) | **Kubernetes ML/Data API** (FastAPI mock ML sentiment inference and normalizer deployed via a customized Helm chart with liveness/readiness probes). | FastAPI, Helm Charts, Traefik Ingress |
 | **Project 5** | [`/05-system-dashboard`](file:///Users/brhanu/Documents/Projects/05-system-dashboard) | **Linux System Health Dashboard** (Background monitoring collector that writes system metrics and service daemons to SQLite, serving a real-time glassmorphic UI). | FastAPI, psutil, SQLite, Chart.js |
+| **Project 6** | [`/06-gitops`](file:///Users/brhanu/Documents/Projects/06-gitops) | **Declarative GitOps CD** (ArgoCD gitops-based continuous delivery and automated sync/self-healing, using Sealed Secrets for encryption). | ArgoCD, Sealed Secrets (`kubeseal`), Kubernetes |
+| **Project 7** | [`/07-multi-cloud-iac`](file:///Users/brhanu/Documents/Projects/07-multi-cloud-iac) | **Multi-Cloud IaC & Configuration** (Terraform infrastructure provisioning in LocalStack and server hardening & configuration using Ansible). | Terraform, Ansible, LocalStack, Docker |
 
 ---
 
@@ -92,15 +94,35 @@ Follow these instructions to verify and run each of the 5 projects:
   * **Web Dashboard**: Access the interactive glassmorphic dark-theme dashboard UI at [http://localhost:8085](http://localhost:8085).
   * **Current stats JSON**: Visit [http://localhost:8085/api/metrics/current](http://localhost:8085/api/metrics/current) to see realtime metrics and host daemon status flags.
 
+### 5️⃣ Project 6: Declarative GitOps CD with ArgoCD
+* **Deployment**: ArgoCD controller manages deployments inside k3d.
+* **Verify**:
+  * Access the ArgoCD dashboard at [http://localhost:8080](http://localhost:8080) (using credentials set up during installation).
+  * Inspect the sync status and self-healing status of `fastapi-app` and `data-api` applications.
+  * Check the sealed secret configuration mapping under `06-gitops/secrets/gitlab-registry-credentials-sealed.yaml`.
+
+### 6️⃣ Project 7: Multi-Cloud Infrastructure as Code with Terraform & Ansible (via LocalStack)
+* **Deployment**: Local AWS Emulation (LocalStack) and Ubuntu target host container.
+* **Execution & Demo**:
+  * Execute the full demo run (starting containers, applying Terraform, running Ansible playbooks):
+    ```bash
+    ./07-multi-cloud-iac/demo.sh
+    ```
+  * Verify mock S3 bucket creation inside LocalStack:
+    ```bash
+    aws --endpoint-url=http://localhost:4566 s3 ls
+    ```
+
 ---
 
 ## 🔒 Automated CI/CD & Security Pipelines
 
 All modifications pushed to the `main` branch trigger a comprehensive pipeline in our local GitLab CE runner:
-1. **Lint Stage (`ruff`)**: Checks code quality and formats for `/app`, `/02-devsecops-etl`, `/04-k8s-data-api/app`, and `/05-system-dashboard`.
+1. **Lint Stage (`ruff`, `terraform validate`, `ansible-lint`)**: Checks Python style, Terraform syntax, and Ansible playbook configurations.
 2. **SAST Scan Stage (`bandit`)**: Identifies potential security issues in Python scripts.
-3. **Test Stage (`pytest`)**: Runs testing suites for all projects to guarantee regression-free additions.
+3. **Test Stage (`pytest`, `terraform plan`)**: Runs python unit testing suites and generates infrastructure plan outputs using local LocalStack mock environments.
 4. **Build Stage (`docker build`)**: Packages each application using hardened Alpine base structures.
 5. **Vulnerability Scan Stage (`trivy`)**: Scans built images for **CRITICAL** CVE vulnerabilities, breaking the build if security issues are identified.
 6. **Release Stage (`docker push`)**: Deploys the secure containers to our local registry.
 7. **Deploy Stage (`helm upgrade`)**: Applies Helm charts dynamically into our k3d Kubernetes cluster.
+
