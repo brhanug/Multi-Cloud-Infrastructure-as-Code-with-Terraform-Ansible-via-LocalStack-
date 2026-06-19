@@ -1,10 +1,18 @@
 import logging
+import os
 import sys
 from datetime import datetime
 from typing import List
 
 from fastapi import FastAPI, status
 from pydantic import BaseModel, Field
+
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
 # Configure logging
 logging.basicConfig(
@@ -20,6 +28,16 @@ app = FastAPI(
     description="Root application hosting liveness probes.",
     version="1.0.0",
 )
+
+# Initialize OpenTelemetry Tracing
+otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger-collector.istio-system.svc.cluster.local:4317")
+resource = Resource(attributes={SERVICE_NAME: "data-api"})
+provider = TracerProvider(resource=resource)
+processor = BatchSpanProcessor(OTLPSpanExporter(endpoint=otlp_endpoint, insecure=True))
+provider.add_span_processor(processor)
+trace.set_tracer_provider(provider)
+
+FastAPIInstrumentor.instrument_app(app)
 
 # Define the sub-application (to mount under /data-api prefix)
 sub_app = FastAPI(
